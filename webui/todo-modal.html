@@ -172,9 +172,9 @@
                 <div class="todo-form-field">
                   <label class="todo-form-label">Project</label>
                   <div class="todo-autocomplete" x-data="{acuOpen: false, acuFilter: ''}">
-                    <input x-model="$store.todoListStore.formProject" @input="acuFilter = $event.target.value.toLowerCase(); acuOpen = acuFilter.length > 0 && $store.todoListStore.projects.filter(p => p.toLowerCase().includes(acuFilter)).length > 0" @focus="acuOpen = $store.todoListStore.projects.filter(p => p.toLowerCase().includes(($store.todoListStore.formProject || '').toLowerCase())).length > 0" @blur="setTimeout(() => acuOpen = false, 200)" placeholder="Project name" class="todo-form-input">
+                    <input x-model="$store.todoListStore.formProject" @input="acuFilter = $event.target.value.toLowerCase(); acuOpen = $store.todoListStore.projects.filter(p => p.toLowerCase().includes(acuFilter)).length > 0" @focus="acuOpen = true; acuFilter = ($store.todoListStore.formProject || '').toLowerCase()" @blur="setTimeout(() => acuOpen = false, 200)" placeholder="Project name" class="todo-form-input">
                     <div x-show="acuOpen" class="todo-autocomplete-list" @click.outside="acuOpen = false">
-                      <template x-for="p in $store.todoListStore.projects.filter(p => p.toLowerCase().includes(($store.todoListStore.formProject || '').toLowerCase()))" :key="p">
+                      <template x-for="p in $store.todoListStore.projects.filter(p => p.toLowerCase().includes(acuFilter))" :key="p">
                         <div @click="$store.todoListStore.formProject = p; acuOpen = false; acuFilter = ''" class="todo-autocomplete-item" x-text="p"></div>
                       </template>
                     </div>
@@ -182,7 +182,14 @@
                 </div>
                 <div class="todo-form-field">
                   <label class="todo-form-label">Agent Profile</label>
-                  <input x-model="$store.todoListStore.formAgentProfile" placeholder="e.g. developer" class="todo-form-input">
+                  <div class="todo-autocomplete" x-data="{apuOpen: false, apuFilter: ''}">
+                    <input x-model="$store.todoListStore.formAgentProfile" @input="apuFilter = $event.target.value.toLowerCase(); apuOpen = $store.todoListStore.agentProfiles.filter(p => p.toLowerCase().includes(apuFilter)).length > 0" @focus="apuOpen = true; apuFilter = ($store.todoListStore.formAgentProfile || '').toLowerCase()" @blur="setTimeout(() => apuOpen = false, 200)" placeholder="e.g. developer" class="todo-form-input">
+                    <div x-show="apuOpen" class="todo-autocomplete-list" @click.outside="apuOpen = false">
+                      <template x-for="p in $store.todoListStore.agentProfiles.filter(p => p.toLowerCase().includes(apuFilter))" :key="p">
+                        <div @click="$store.todoListStore.formAgentProfile = p; apuOpen = false; apuFilter = ''" class="todo-autocomplete-item" x-text="p"></div>
+                      </template>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div class="todo-form-field">

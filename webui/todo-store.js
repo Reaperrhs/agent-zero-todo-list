@@ -18,6 +18,7 @@ export const store = createStore("todoListStore", {
     // State
     tasks: [],
     projects: [],
+    agentProfiles: [],
     stats: { total: 0, pending: 0, in_progress: 0, blocked: 0, completed: 0, cancelled: 0 },
     loading: false,
 
@@ -56,6 +57,7 @@ export const store = createStore("todoListStore", {
     cleanup() {
         this.tasks = [];
         this.projects = [];
+        this.agentProfiles = [];
         this.resetForm();
         this.linkMode = false;
     },
@@ -73,6 +75,7 @@ export const store = createStore("todoListStore", {
             const data = await api("get_tasks", filters);
             this.tasks = data.tasks || [];
             this.projects = data.projects || [];
+            this.agentProfiles = data.agent_profiles || [];
             this.stats = data.stats || { total: 0, pending: 0, in_progress: 0, blocked: 0, completed: 0, cancelled: 0 };
         } catch (err) {
             toastFrontendError(err.message, "Todo List");

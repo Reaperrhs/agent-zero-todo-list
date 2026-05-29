@@ -230,6 +230,14 @@ def get_projects() -> list[str]:
     return projects
 
 
+def get_agent_profiles() -> list[str]:
+    """Return sorted list of unique agent profile names."""
+    with _lock:
+        todos = _read_raw()
+    profiles = sorted({t.get("agent_profile", "") for t in todos.values() if t.get("agent_profile")})
+    return profiles
+
+
 def get_stats() -> dict[str, Any]:
     """Return task statistics."""
     with _lock:
