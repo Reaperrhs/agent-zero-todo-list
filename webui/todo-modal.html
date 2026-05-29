@@ -171,7 +171,14 @@
               <div class="todo-form-row">
                 <div class="todo-form-field">
                   <label class="todo-form-label">Project</label>
-                  <input x-model="$store.todoListStore.formProject" placeholder="Project name" class="todo-form-input">
+                  <div class="todo-autocomplete" x-data="{acuOpen: false, acuFilter: ''}">
+                    <input x-model="$store.todoListStore.formProject" @input="acuFilter = $event.target.value.toLowerCase(); acuOpen = acuFilter.length > 0 && $store.todoListStore.projects.filter(p => p.toLowerCase().includes(acuFilter)).length > 0" @focus="acuOpen = $store.todoListStore.projects.filter(p => p.toLowerCase().includes(($store.todoListStore.formProject || '').toLowerCase())).length > 0" @blur="setTimeout(() => acuOpen = false, 200)" placeholder="Project name" class="todo-form-input">
+                    <div x-show="acuOpen" class="todo-autocomplete-list" @click.outside="acuOpen = false">
+                      <template x-for="p in $store.todoListStore.projects.filter(p => p.toLowerCase().includes(($store.todoListStore.formProject || '').toLowerCase()))" :key="p">
+                        <div @click="$store.todoListStore.formProject = p; acuOpen = false; acuFilter = ''" class="todo-autocomplete-item" x-text="p"></div>
+                      </template>
+                    </div>
+                  </div>
                 </div>
                 <div class="todo-form-field">
                   <label class="todo-form-label">Agent Profile</label>
@@ -233,7 +240,7 @@
       font-size: 11px;
       padding: 2px 8px;
       border-radius: 4px;
-      background: var(--color-bg-elevated);
+      background: #1f2937;
     }
     .todo-stat-active {
       background: rgba(59, 130, 246, 0.15);
@@ -251,7 +258,7 @@
       gap: 8px;
       padding: 10px 16px;
       border-bottom: 1px solid var(--color-border);
-      background: var(--color-bg-elevated);
+      background: #1f2937;
       flex-shrink: 0;
     }
     .todo-select, .todo-search {
@@ -324,7 +331,7 @@
       padding: 10px 12px;
       border-radius: 8px;
       border: 1px solid var(--color-border);
-      background: var(--color-bg-elevated);
+      background: #1f2937;
       margin-bottom: 6px;
     }
     .todo-item:hover {
@@ -428,7 +435,7 @@
     .todo-tag {
       padding: 1px 6px;
       border-radius: 4px;
-      background: var(--color-bg);
+      background: #111827;
       font-size: 10px;
     }
 
@@ -439,7 +446,7 @@
     .todo-progress-bar {
       width: 100%;
       height: 4px;
-      background: var(--color-bg);
+      background: #111827;
       border-radius: 2px;
       overflow: hidden;
     }
@@ -511,7 +518,7 @@
     }
     .todo-action-btn:hover {
       color: var(--color-text);
-      background: var(--color-bg);
+      background: #111827;
     }
     .todo-action-icon {
       width: 14px;
@@ -523,14 +530,14 @@
     .todo-form-overlay {
       position: absolute;
       inset: 0;
-      background: rgba(0, 0, 0, 0.6);
+      background: rgba(0, 0, 0, 0.85);
       display: flex;
       align-items: center;
       justify-content: center;
       z-index: 100;
     }
     .todo-form-panel {
-      background: var(--color-bg-elevated);
+      background: #1f2937;
       border: 1px solid var(--color-border);
       border-radius: 10px;
       width: 420px;
@@ -568,7 +575,7 @@
       padding: 6px 10px;
       border-radius: 6px;
       border: 1px solid var(--color-border);
-      background: var(--color-bg);
+      background: #111827;
       color: var(--color-text);
       box-sizing: border-box;
     }
@@ -596,6 +603,31 @@
       padding: 10px 16px;
       border-top: 1px solid var(--color-border);
       flex-shrink: 0;
+    }
+    /* Autocomplete */
+    .todo-autocomplete {
+      position: relative;
+    }
+    .todo-autocomplete-list {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 6px;
+      max-height: 150px;
+      overflow-y: auto;
+      z-index: 110;
+    }
+    .todo-autocomplete-item {
+      padding: 6px 10px;
+      font-size: 13px;
+      color: #f3f4f6;
+      cursor: pointer;
+    }
+    .todo-autocomplete-item:hover {
+      background: #374151;
     }
   </style>
 </body>
