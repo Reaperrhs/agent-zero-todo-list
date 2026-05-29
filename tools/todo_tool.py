@@ -15,7 +15,7 @@ from usr.plugins.todo_list.helpers.todos import (
 
 class TodoTool(Tool):
     async def execute(self, **kwargs):
-        method = (self.method or "").strip().lower()
+        method = (self.method or kwargs.get("action") or "").strip().lower()
 
         try:
             if method == "create":
