@@ -66,6 +66,9 @@ def _new_task(data: dict[str, Any]) -> dict[str, Any]:
     progress = int(data.get("progress", 0))
     progress = max(0, min(100, progress))
 
+    start_date = str(data.get("start_date", "")).strip() or None
+    due_date = str(data.get("due_date", "")).strip() or None
+
     now = _now()
     return {
         "id": str(uuid.uuid4()),
@@ -76,6 +79,8 @@ def _new_task(data: dict[str, Any]) -> dict[str, Any]:
         "progress": progress,
         "project": str(data.get("project", "")).strip(),
         "agent_profile": str(data.get("agent_profile", "")).strip(),
+        "start_date": start_date,
+        "due_date": due_date,
         "chat_sections": list(data.get("chat_sections", [])),
         "tags": [str(t).strip() for t in data.get("tags", []) if str(t).strip()],
         "created_at": now,
@@ -169,6 +174,12 @@ def update_task(task_id: str, data: dict[str, Any]) -> dict | None:
             task["project"] = str(data.get("project", "")).strip()
         if "agent_profile" in data:
             task["agent_profile"] = str(data.get("agent_profile", "")).strip()
+        if "start_date" in data:
+            val = str(data.get("start_date", "")).strip() or None
+            task["start_date"] = val
+        if "due_date" in data:
+            val = str(data.get("due_date", "")).strip() or None
+            task["due_date"] = val
         if "tags" in data:
             task["tags"] = [str(t).strip() for t in data["tags"] if str(t).strip()]
         if "chat_sections" in data:

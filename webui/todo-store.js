@@ -39,6 +39,8 @@ export const store = createStore("todoListStore", {
     formProgress: 0,
     formProject: "",
     formAgentProfile: "",
+    formStartDate: "",
+    formDueDate: "",
     formTags: "",
 
     // Linking
@@ -100,6 +102,8 @@ export const store = createStore("todoListStore", {
         this.formProgress = task.progress || 0;
         this.formProject = task.project || "";
         this.formAgentProfile = task.agent_profile || "";
+        this.formStartDate = task.start_date || "";
+        this.formDueDate = task.due_date || "";
         this.formTags = (task.tags || []).join(", ");
     },
 
@@ -113,6 +117,8 @@ export const store = createStore("todoListStore", {
         this.formProgress = 0;
         this.formProject = "";
         this.formAgentProfile = "";
+        this.formStartDate = "";
+        this.formDueDate = "";
         this.formTags = "";
     },
 
@@ -130,6 +136,8 @@ export const store = createStore("todoListStore", {
             progress: parseInt(this.formProgress, 10) || 0,
             project: this.formProject.trim(),
             agent_profile: this.formAgentProfile.trim(),
+            start_date: this.formStartDate || null,
+            due_date: this.formDueDate || null,
             tags: this.formTags.split(",").map(t => t.trim()).filter(Boolean),
         };
         try {
@@ -232,5 +240,27 @@ export const store = createStore("todoListStore", {
             urgent: "text-red-400",
         };
         return map[priority] || map.medium;
+    },
+
+    dateLabel(dateStr) {
+        if (!dateStr) return "";
+        const d = new Date(dateStr + "T00:00:00");
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        const diff = Math.floor((d - now) / 86400000);
+        if (diff === 0) return "Today";
+        if (diff === 1) return "Tomorrow";
+        if (diff === -1) return "Yesterday";
+        if (diff > 1 && diff <= 7) return `In ${diff} days`;
+        if (diff < -1 && diff >= -7) return `${Math.abs(diff)} days ago`;
+        return dateStr;
+    },
+
+    isOverdue(dateStr) {
+        if (!dateStr) return false;
+        const d = new Date(dateStr + "T00:00:00");
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        return d < now;
     },
 });

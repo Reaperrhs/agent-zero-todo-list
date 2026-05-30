@@ -25,6 +25,8 @@ Call as `todo_tool:<action>` where `<action>` is one of the methods below.
 | `progress` | No | Integer 0–100 (default: 0) |
 | `project` | No | Project name for grouping |
 | `agent_profile` | No | Your profile name for self-tracking |
+| `start_date` | No | Start date in `YYYY-MM-DD` format |
+| `due_date` | No | Due date in `YYYY-MM-DD` format |
 | `tags` | No | Array of tag strings |
 
 Example:
@@ -99,6 +101,8 @@ Example:
 | `progress` | No | Updated progress (0–100) |
 | `project` | No | Updated project |
 | `agent_profile` | No | Updated agent profile |
+| `start_date` | No | Updated start date (`YYYY-MM-DD`) |
+| `due_date` | No | Updated due date (`YYYY-MM-DD`) |
 | `tags` | No | Updated tag array (replaces existing) |
 
 Example:

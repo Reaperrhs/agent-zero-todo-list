@@ -54,7 +54,7 @@ class TodoTool(Tool):
     async def _create(self, kwargs):
         data = {}
         for key in ("title", "description", "status", "priority",
-                    "progress", "project", "agent_profile", "tags"):
+                    "progress", "project", "agent_profile", "start_date", "due_date", "tags"):
             if key in kwargs:
                 data[key] = kwargs[key]
 
@@ -132,6 +132,8 @@ class TodoTool(Tool):
                 f"  Progress: {task.get('progress', 0)}%\n"
                 f"  Project: {task.get('project', '') or '(none)'}\n"
                 f"  Agent: {task.get('agent_profile', '') or '(none)'}\n"
+                f"  Start: {task.get('start_date', '') or '(none)'}\n"
+                f"  Due: {task.get('due_date', '') or '(none)'}\n"
                 f"  Tags: {', '.join(task.get('tags', [])) or '(none)'}\n"
                 f"  Chat sections: {', '.join(task.get('chat_sections', [])) or '(none)'}\n"
                 f"  Created: {task.get('created_at', '')}\n"
@@ -150,7 +152,7 @@ class TodoTool(Tool):
 
         data = {}
         for key in ("title", "description", "status", "priority",
-                    "progress", "project", "agent_profile", "tags"):
+                    "progress", "project", "agent_profile", "start_date", "due_date", "tags"):
             if key in kwargs:
                 data[key] = kwargs[key]
 
