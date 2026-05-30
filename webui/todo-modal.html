@@ -2,6 +2,55 @@
 <head>
   <title>Todo List</title>
   <script type="module" src="/plugins/todo_list/webui/todo-store.js"></script>
+  <script>
+    function buildCalDays(year, month) {
+      const first = new Date(year, month, 1);
+      const last = new Date(year, month + 1, 0);
+      const startDay = first.getDay();
+      const daysInMonth = last.getDate();
+      const today = new Date(); today.setHours(0,0,0,0);
+      const pad = (n) => String(n).padStart(2, '0');
+      const result = [];
+      for (let i = 1 - startDay; i <= daysInMonth; i++) {
+        if (i < 1) {
+          result.push({num: '', date: '', key: 'blank-' + (i + startDay), isToday: false});
+        } else {
+          const d = new Date(year, month, i);
+          const dateStr = year + '-' + pad(month+1) + '-' + pad(i);
+          result.push({num: i, date: dateStr, key: dateStr, isToday: d.getTime() === today.getTime()});
+        }
+      }
+      return result;
+    }
+
+    function todoDatePicker() {
+      const saved = JSON.parse(localStorage.getItem('todoPanelPos') || 'null') || {x:0,y:0};
+      return {
+        panelX: saved.x,
+        panelY: saved.y,
+        dragOffsetX: 0,
+        dragOffsetY: 0,
+        isDragging: false,
+        startDrag(ev) {
+          this.isDragging = true;
+          this.dragOffsetX = ev.clientX - this.panelX;
+          this.dragOffsetY = ev.clientY - this.panelY;
+          const onMove = (e) => {
+            this.panelX = e.clientX - this.dragOffsetX;
+            this.panelY = e.clientY - this.dragOffsetY;
+          };
+          const onUp = () => {
+            this.isDragging = false;
+            localStorage.setItem('todoPanelPos', JSON.stringify({x: this.panelX, y: this.panelY}));
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+          };
+          window.addEventListener('mousemove', onMove);
+          window.addEventListener('mouseup', onUp);
+        }
+      };
+    }
+  </script>
 </head>
 <body>
   <div x-data>
@@ -140,8 +189,8 @@
 
         <!-- Form Modal Overlay -->
         <div x-show="$store.todoListStore.formOpen" class="todo-form-overlay" style="display: none;" x-transition @click.self="$store.todoListStore.resetForm()">
-          <div class="todo-form-panel" x-data="{ dragOffset: {x:0,y:0}, dragStart: {x:0,y:0}, isDragging: false, panelPos: JSON.parse(localStorage.getItem('todoPanelPos') || 'null') }" x-init="if(!panelPos) panelPos = {x:0,y:0}; $el.style.transform = 'translate(' + panelPos.x + 'px,' + panelPos.y + 'px)'" @mousedown.window="if(isDragging){ isDragging=false; localStorage.setItem('todoPanelPos', JSON.stringify(panelPos)) }" @mousemove.window="if(isDragging){ const dx = $event.clientX - dragStart.x; const dy = $event.clientY - dragStart.y; panelPos = {x: dragOffset.x + dx, y: dragOffset.y + dy}; $el.style.transform = 'translate(' + panelPos.x + 'px,' + panelPos.y + 'px)' }">
-            <h3 class="todo-form-title todo-drag-handle" @mousedown="isDragging=true; dragStart={x:$event.clientX,y:$event.clientY}; dragOffset={x:panelPos.x,y:panelPos.y}" x-text="$store.todoListStore.formEditing ? 'Edit Task' : 'New Task'"></h3>
+          <div x-data="todoDatePicker()" class="todo-form-panel" :style="'transform:translate(' + panelX + 'px,' + panelY + 'px)'">
+            <h3 class="todo-form-title todo-drag-handle" @mousedown.prevent="startDrag($event)" x-text="$store.todoListStore.formEditing ? 'Edit Task' : 'New Task'"></h3>
             <div class="todo-form-body">
               <div class="todo-form-field">
                 <label class="todo-form-label">Title *</label>
@@ -207,11 +256,47 @@
               <div class="todo-form-row">
                 <div class="todo-form-field">
                   <label class="todo-form-label">Start Date</label>
-                  <input type="date" x-model="$store.todoListStore.formStartDate" class="todo-form-input todo-form-date">
+                  <div class="todo-date-wrapper" x-data="{calOpen: false, calMonth: new Date().getMonth(), calYear: new Date().getFullYear(), get calDays() { return buildCalDays(this.calYear, this.calMonth) }})">
+                    <input x-model="$store.todoListStore.formStartDate" @focus="calOpen=true" @blur="setTimeout(()=>calOpen=false,200)" placeholder="YYYY-MM-DD" class="todo-form-input todo-form-date">
+                    <button type="button" class="todo-date-icon-btn" @mousedown.prevent="calOpen=!calOpen">
+                      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    </button>
+                    <div x-show="calOpen" x-transition class="todo-calendar" @click.stop>
+                      <div class="todo-cal-header">
+                        <button type="button" class="todo-cal-nav" @mousedown.prevent="calMonth--; if(calMonth<0){calMonth=11;calYear--}">&#9664;</button>
+                        <span class="todo-cal-title" x-text="new Date(calYear, calMonth).toLocaleString('en',{month:'long',year:'numeric'})"></span>
+                        <button type="button" class="todo-cal-nav" @mousedown.prevent="calMonth++; if(calMonth>11){calMonth=0;calYear++}">&#9654;</button>
+                      </div>
+                      <div class="todo-cal-grid">
+                        <span class="todo-cal-dow">Su</span><span class="todo-cal-dow">Mo</span><span class="todo-cal-dow">Tu</span><span class="todo-cal-dow">We</span><span class="todo-cal-dow">Th</span><span class="todo-cal-dow">Fr</span><span class="todo-cal-dow">Sa</span>
+                        <template x-for="d in calDays" :key="d.key">
+                          <button type="button" class="todo-cal-day" :class="{'todo-cal-day-selected': d.date===$store.todoListStore.formStartDate, 'todo-cal-day-today': d.isToday}" @mousedown.prevent="$store.todoListStore.formStartDate=d.date; calOpen=false" x-text="d.num"></button>
+                        </template>
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 <div class="todo-form-field">
                   <label class="todo-form-label">Due Date</label>
-                  <input type="date" x-model="$store.todoListStore.formDueDate" class="todo-form-input todo-form-date">
+                  <div class="todo-date-wrapper" x-data="{cal2Open: false, cal2Month: new Date().getMonth(), cal2Year: new Date().getFullYear(), get cal2Days() { return buildCalDays(this.cal2Year, this.cal2Month) }}">
+                    <input x-model="$store.todoListStore.formDueDate" @focus="cal2Open=true" @blur="setTimeout(()=>cal2Open=false,200)" placeholder="YYYY-MM-DD" class="todo-form-input todo-form-date">
+                    <button type="button" class="todo-date-icon-btn" @mousedown.prevent="cal2Open=!cal2Open">
+                      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    </button>
+                    <div x-show="cal2Open" x-transition class="todo-calendar" @click.stop>
+                      <div class="todo-cal-header">
+                        <button type="button" class="todo-cal-nav" @mousedown.prevent="cal2Month--; if(cal2Month<0){cal2Month=11;cal2Year--}">&#9664;</button>
+                        <span class="todo-cal-title" x-text="new Date(cal2Year, cal2Month).toLocaleString('en',{month:'long',year:'numeric'})"></span>
+                        <button type="button" class="todo-cal-nav" @mousedown.prevent="cal2Month++; if(cal2Month>11){cal2Month=0;cal2Year++}">&#9654;</button>
+                      </div>
+                      <div class="todo-cal-grid">
+                        <span class="todo-cal-dow">Su</span><span class="todo-cal-dow">Mo</span><span class="todo-cal-dow">Tu</span><span class="todo-cal-dow">We</span><span class="todo-cal-dow">Th</span><span class="todo-cal-dow">Fr</span><span class="todo-cal-dow">Sa</span>
+                        <template x-for="d in cal2Days" :key="d.key">
+                          <button type="button" class="todo-cal-day" :class="{'todo-cal-day-selected': d.date===$store.todoListStore.formDueDate, 'todo-cal-day-today': d.isToday}" @mousedown.prevent="$store.todoListStore.formDueDate=d.date; cal2Open=false" x-text="d.num"></button>
+                        </template>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -655,11 +740,96 @@
       background: #374151;
     }
     /* Date inputs */
+    .todo-date-wrapper {
+      position: relative;
+    }
     .todo-form-date {
       color-scheme: dark;
+      padding-right: 32px;
     }
-    .todo-form-date::-webkit-calendar-picker-indicator {
-      filter: invert(1);
+    .todo-date-icon-btn {
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: #9ca3af;
+      cursor: pointer;
+      padding: 2px;
+      display: flex;
+      align-items: center;
+    }
+    .todo-date-icon-btn:hover {
+      color: #f3f4f6;
+    }
+    /* Calendar popup */
+    .todo-calendar {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      z-index: 120;
+      background: #111827;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      padding: 8px;
+      width: 220px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    }
+    .todo-cal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .todo-cal-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #f3f4f6;
+    }
+    .todo-cal-nav {
+      background: none;
+      border: none;
+      color: #9ca3af;
+      cursor: pointer;
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    .todo-cal-nav:hover {
+      background: #374151;
+      color: #f3f4f6;
+    }
+    .todo-cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+    }
+    .todo-cal-dow {
+      text-align: center;
+      font-size: 10px;
+      color: #6b7280;
+      padding: 2px 0;
+    }
+    .todo-cal-day {
+      text-align: center;
+      font-size: 12px;
+      color: #d1d5db;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px 0;
+      border-radius: 4px;
+    }
+    .todo-cal-day:hover {
+      background: #374151;
+    }
+    .todo-cal-day-selected {
+      background: #3b82f6 !important;
+      color: white !important;
+    }
+    .todo-cal-day-today {
+      border: 1px solid #3b82f6;
     }
     /* Overdue indicator */
     .todo-overdue {
@@ -676,6 +846,12 @@
     }
     .todo-drag-handle:active {
       cursor: grabbing;
+    }
+    .todo-form-panel {
+      user-select: none;
+    }
+    .todo-form-body, .todo-form-footer {
+      user-select: auto;
     }
   </style>
 </body>
