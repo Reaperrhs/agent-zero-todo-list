@@ -16,7 +16,7 @@
           result.push({num: '', date: '', key: 'blank-' + (i + startDay), isToday: false});
         } else {
           const d = new Date(year, month, i);
-          const dateStr = year + '-' + pad(month+1) + '-' + pad(i);
+          const dateStr = pad(month+1) + '-' + pad(i) + '-' + year;
           result.push({num: i, date: dateStr, key: dateStr, isToday: d.getTime() === today.getTime()});
         }
       }
@@ -256,18 +256,27 @@
               <div class="todo-form-row">
                 <div class="todo-form-field">
                   <label class="todo-form-label">Start Date</label>
-                  <div class="todo-date-wrapper" x-data="{calOpen: false, calMonth: new Date().getMonth(), calYear: new Date().getFullYear(), get calDays() { return buildCalDays(this.calYear, this.calMonth) }})">
-                    <input x-model="$store.todoListStore.formStartDate" @focus="calOpen=true" @blur="setTimeout(()=>calOpen=false,200)" placeholder="YYYY-MM-DD" class="todo-form-input todo-form-date">
-                    <button type="button" class="todo-date-icon-btn" @mousedown.prevent="calOpen=!calOpen">
+                  <div class="todo-date-wrapper" x-data="{calOpen: false, calMonth: new Date().getMonth(), calYear: new Date().getFullYear(), calYearPicker: false, calTop: 0, calLeft: 0, get calDays() { return buildCalDays(this.calYear, this.calMonth) }, openCal() { const r = this.$refs.calBtn.getBoundingClientRect(); this.calTop = r.bottom + 4; this.calLeft = Math.min(r.left, window.innerWidth - 232); this.calOpen = true }}">
+                    <input x-model="$store.todoListStore.formStartDate" @focus="openCal()" placeholder="MM-DD-YYYY" class="todo-form-input todo-form-date">
+                    <button type="button" x-ref="calBtn" class="todo-date-icon-btn" @mousedown.prevent="openCal()">
                       <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                     </button>
-                    <div x-show="calOpen" x-transition class="todo-calendar" @click.stop>
+                    <div x-show="calOpen" x-transition class="todo-calendar" :style="'top:'+calTop+'px;left:'+calLeft+'px'" @mousedown.prevent.stop>
                       <div class="todo-cal-header">
-                        <button type="button" class="todo-cal-nav" @mousedown.prevent="calMonth--; if(calMonth<0){calMonth=11;calYear--}">&#9664;</button>
-                        <span class="todo-cal-title" x-text="new Date(calYear, calMonth).toLocaleString('en',{month:'long',year:'numeric'})"></span>
-                        <button type="button" class="todo-cal-nav" @mousedown.prevent="calMonth++; if(calMonth>11){calMonth=0;calYear++}">&#9654;</button>
+                        <button type="button" class="todo-cal-nav" @mousedown.prevent="if(calYearPicker){calYear--}else{calMonth--;if(calMonth<0){calMonth=11;calYear--}}">&#9664;</button>
+                        <span class="todo-cal-title">
+                          <span x-text="new Date(calYear, calMonth).toLocaleString('en',{month:'long'})" @click="calYearPicker=!calYearPicker" style="cursor:pointer"></span>
+                          <span x-show="!calYearPicker" x-text="' '+calYear" @click="calYearPicker=true" style="cursor:pointer"></span>
+                          <template x-if="calYearPicker">
+                            <span>
+                              <input x-model="calYear" type="number" class="todo-cal-year-input" @mousedown.prevent.stop @keydown.enter="calYearPicker=false" min="2000" max="2099">
+                              <button type="button" class="todo-cal-nav" @mousedown.prevent="calYearPicker=false">&#10003;</button>
+                            </span>
+                          </template>
+                        </span>
+                        <button type="button" class="todo-cal-nav" @mousedown.prevent="if(calYearPicker){calYear++}else{calMonth++;if(calMonth>11){calMonth=0;calYear++}}">&#9654;</button>
                       </div>
-                      <div class="todo-cal-grid">
+                      <div x-show="!calYearPicker" class="todo-cal-grid">
                         <span class="todo-cal-dow">Su</span><span class="todo-cal-dow">Mo</span><span class="todo-cal-dow">Tu</span><span class="todo-cal-dow">We</span><span class="todo-cal-dow">Th</span><span class="todo-cal-dow">Fr</span><span class="todo-cal-dow">Sa</span>
                         <template x-for="d in calDays" :key="d.key">
                           <button type="button" class="todo-cal-day" :class="{'todo-cal-day-selected': d.date===$store.todoListStore.formStartDate, 'todo-cal-day-today': d.isToday}" @mousedown.prevent="$store.todoListStore.formStartDate=d.date; calOpen=false" x-text="d.num"></button>
@@ -278,18 +287,27 @@
                 </div>
                 <div class="todo-form-field">
                   <label class="todo-form-label">Due Date</label>
-                  <div class="todo-date-wrapper" x-data="{cal2Open: false, cal2Month: new Date().getMonth(), cal2Year: new Date().getFullYear(), get cal2Days() { return buildCalDays(this.cal2Year, this.cal2Month) }}">
-                    <input x-model="$store.todoListStore.formDueDate" @focus="cal2Open=true" @blur="setTimeout(()=>cal2Open=false,200)" placeholder="YYYY-MM-DD" class="todo-form-input todo-form-date">
-                    <button type="button" class="todo-date-icon-btn" @mousedown.prevent="cal2Open=!cal2Open">
+                  <div class="todo-date-wrapper" x-data="{cal2Open: false, cal2Month: new Date().getMonth(), cal2Year: new Date().getFullYear(), cal2YearPicker: false, cal2Top: 0, cal2Left: 0, get cal2Days() { return buildCalDays(this.cal2Year, this.cal2Month) }, openCal2() { const r = this.$refs.cal2Btn.getBoundingClientRect(); this.cal2Top = r.bottom + 4; this.cal2Left = Math.min(r.left, window.innerWidth - 232); this.cal2Open = true }}">
+                    <input x-model="$store.todoListStore.formDueDate" @focus="openCal2()" placeholder="MM-DD-YYYY" class="todo-form-input todo-form-date">
+                    <button type="button" x-ref="cal2Btn" class="todo-date-icon-btn" @mousedown.prevent="openCal2()">
                       <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                     </button>
-                    <div x-show="cal2Open" x-transition class="todo-calendar" @click.stop>
+                    <div x-show="cal2Open" x-transition class="todo-calendar" :style="'top:'+cal2Top+'px;left:'+cal2Left+'px'" @mousedown.prevent.stop>
                       <div class="todo-cal-header">
-                        <button type="button" class="todo-cal-nav" @mousedown.prevent="cal2Month--; if(cal2Month<0){cal2Month=11;cal2Year--}">&#9664;</button>
-                        <span class="todo-cal-title" x-text="new Date(cal2Year, cal2Month).toLocaleString('en',{month:'long',year:'numeric'})"></span>
-                        <button type="button" class="todo-cal-nav" @mousedown.prevent="cal2Month++; if(cal2Month>11){cal2Month=0;cal2Year++}">&#9654;</button>
+                        <button type="button" class="todo-cal-nav" @mousedown.prevent="if(cal2YearPicker){cal2Year--}else{cal2Month--;if(cal2Month<0){cal2Month=11;cal2Year--}}">&#9664;</button>
+                        <span class="todo-cal-title">
+                          <span x-text="new Date(cal2Year, cal2Month).toLocaleString('en',{month:'long'})" @click="cal2YearPicker=!cal2YearPicker" style="cursor:pointer"></span>
+                          <span x-show="!cal2YearPicker" x-text="' '+cal2Year" @click="cal2YearPicker=true" style="cursor:pointer"></span>
+                          <template x-if="cal2YearPicker">
+                            <span>
+                              <input x-model="cal2Year" type="number" class="todo-cal-year-input" @mousedown.prevent.stop @keydown.enter="cal2YearPicker=false" min="2000" max="2099">
+                              <button type="button" class="todo-cal-nav" @mousedown.prevent="cal2YearPicker=false">&#10003;</button>
+                            </span>
+                          </template>
+                        </span>
+                        <button type="button" class="todo-cal-nav" @mousedown.prevent="if(cal2YearPicker){cal2Year++}else{cal2Month++;if(cal2Month>11){cal2Month=0;cal2Year++}}">&#9654;</button>
                       </div>
-                      <div class="todo-cal-grid">
+                      <div x-show="!cal2YearPicker" class="todo-cal-grid">
                         <span class="todo-cal-dow">Su</span><span class="todo-cal-dow">Mo</span><span class="todo-cal-dow">Tu</span><span class="todo-cal-dow">We</span><span class="todo-cal-dow">Th</span><span class="todo-cal-dow">Fr</span><span class="todo-cal-dow">Sa</span>
                         <template x-for="d in cal2Days" :key="d.key">
                           <button type="button" class="todo-cal-day" :class="{'todo-cal-day-selected': d.date===$store.todoListStore.formDueDate, 'todo-cal-day-today': d.isToday}" @mousedown.prevent="$store.todoListStore.formDueDate=d.date; cal2Open=false" x-text="d.num"></button>
@@ -656,6 +674,7 @@
       display: flex;
       flex-direction: column;
       box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      overflow: visible;
     }
     .todo-form-title {
       font-size: 15px;
@@ -765,10 +784,8 @@
     }
     /* Calendar popup */
     .todo-calendar {
-      position: absolute;
-      top: 100%;
-      left: 0;
-      z-index: 120;
+      position: fixed;
+      z-index: 200;
       background: #111827;
       border: 1px solid #374151;
       border-radius: 8px;
@@ -786,6 +803,19 @@
       font-size: 13px;
       font-weight: 600;
       color: #f3f4f6;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+    .todo-cal-year-input {
+      width: 60px;
+      background: #1f2937;
+      border: 1px solid #4b5563;
+      border-radius: 4px;
+      color: #f3f4f6;
+      font-size: 13px;
+      padding: 2px 4px;
+      text-align: center;
     }
     .todo-cal-nav {
       background: none;
@@ -849,6 +879,7 @@
     }
     .todo-form-panel {
       user-select: none;
+      overflow: visible;
     }
     .todo-form-body, .todo-form-footer {
       user-select: auto;

@@ -244,7 +244,9 @@ export const store = createStore("todoListStore", {
 
     dateLabel(dateStr) {
         if (!dateStr) return "";
-        const d = new Date(dateStr + "T00:00:00");
+        // Parse MM-DD-YYYY format
+        const parts = dateStr.split('-');
+        const d = new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]));
         const now = new Date();
         now.setHours(0, 0, 0, 0);
         const diff = Math.floor((d - now) / 86400000);
@@ -258,7 +260,8 @@ export const store = createStore("todoListStore", {
 
     isOverdue(dateStr) {
         if (!dateStr) return false;
-        const d = new Date(dateStr + "T00:00:00");
+        const parts = dateStr.split('-');
+        const d = new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]));
         const now = new Date();
         now.setHours(0, 0, 0, 0);
         return d < now;
