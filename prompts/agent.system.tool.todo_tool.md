@@ -27,6 +27,7 @@ Call as `todo_tool:<action>` where `<action>` is one of the methods below.
 | `agent_profile` | No | Your profile name for self-tracking |
 | `start_date` | No | Start date in `YYYY-MM-DD` format |
 | `due_date` | No | Due date in `YYYY-MM-DD` format |
+| `blocked_by` | No | List of task IDs this task depends on (comma-separated string or array). Circular dependencies are rejected. |
 | `tags` | No | Array of tag strings |
 
 Example:
@@ -103,6 +104,7 @@ Example:
 | `agent_profile` | No | Updated agent profile |
 | `start_date` | No | Updated start date (`YYYY-MM-DD`) |
 | `due_date` | No | Updated due date (`YYYY-MM-DD`) |
+| `blocked_by` | No | Updated blocked-by list (comma-separated string or array; replaces existing) |
 | `tags` | No | Updated tag array (replaces existing) |
 
 Example:
@@ -189,6 +191,36 @@ Example:
 {
     "thoughts": ["Listing all projects that have tasks."],
     "tool_name": "todo_tool:projects",
+    "tool_args": {}
+}
+```
+
+### `todo_tool:blocked` — List all blocked tasks
+
+Returns tasks that have at least one active (non-completed, non-cancelled) blocker. Shows each blocker's title and status.
+
+No parameters required.
+
+Example:
+```json
+{
+    "thoughts": ["Checking which tasks are currently blocked."],
+    "tool_name": "todo_tool:blocked",
+    "tool_args": {}
+}
+```
+
+### `todo_tool:unblocked` — List newly-unblocked tasks
+
+Returns tasks that had blockers but all blockers are now completed or cancelled. These tasks are ready to proceed.
+
+No parameters required.
+
+Example:
+```json
+{
+    "thoughts": ["Checking which tasks just became unblocked."],
+    "tool_name": "todo_tool:unblocked",
     "tool_args": {}
 }
 ```

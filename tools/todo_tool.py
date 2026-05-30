@@ -10,6 +10,9 @@ from usr.plugins.todo_list.helpers.todos import (
     unlink_chat,
     get_stats,
     get_projects,
+    get_blocked,
+    get_unblocked,
+    check_on_complete,
 )
 
 
@@ -36,12 +39,16 @@ class TodoTool(Tool):
                 return await self._stats()
             elif method == "projects":
                 return await self._projects()
+            elif method == "blocked":
+                return await self._blocked()
+            elif method == "unblocked":
+                return await self._unblocked()
             else:
                 return Response(
                     message=(
                         f"Unknown todo_tool method: '{method}'. "
                         "Valid methods: create, list, get, update, delete, "
-                        "link_chat, unlink_chat, stats, projects"
+                        "link_chat, unlink_chat, stats, projects, blocked, unblocked"
                     ),
                     break_loop=False,
                 )
@@ -54,7 +61,8 @@ class TodoTool(Tool):
     async def _create(self, kwargs):
         data = {}
         for key in ("title", "description", "status", "priority",
-                    "progress", "project", "agent_profile", "start_date", "due_date", "tags"):
+                    "progress", "project", "agent_profile", "start_date", "due_date",
+                    "blocked_by", "tags"):
             if key in kwargs:
                 data[key] = kwargs[key]
 
@@ -65,6 +73,9 @@ class TodoTool(Tool):
             )
 
         task = create_task(data)
+        blocked_info = ""
+        if task.get("blocked_by"):
+            blocked_info = f"\n  Blocked by: {', '.join(task['blocked_by'])}"
         return Response(
             message=(
                 f"Task created:\n"
@@ -74,7 +85,7 @@ class TodoTool(Tool):
                 f"  Priority: {task['priority']}\n"
                 f"  Project: {task.get('project', '') or '(none)'}\n"
                 f"  Agent: {task.get('agent_profile', '') or '(none)'}\n"
-                f"  Tags: {', '.join(task.get('tags', [])) or '(none)'}"
+                f"  Tags: {', '.join(task.get('tags', [])) or '(none)'}{blocked_info}"
             ),
             break_loop=False,
         )
@@ -134,6 +145,7 @@ class TodoTool(Tool):
                 f"  Agent: {task.get('agent_profile', '') or '(none)'}\n"
                 f"  Start: {task.get('start_date', '') or '(none)'}\n"
                 f"  Due: {task.get('due_date', '') or '(none)'}\n"
+                f"  Blocked by: {', '.join(task.get('blocked_by', [])) or '(none)'}\n"
                 f"  Tags: {', '.join(task.get('tags', [])) or '(none)'}\n"
                 f"  Chat sections: {', '.join(task.get('chat_sections', [])) or '(none)'}\n"
                 f"  Created: {task.get('created_at', '')}\n"
@@ -152,7 +164,8 @@ class TodoTool(Tool):
 
         data = {}
         for key in ("title", "description", "status", "priority",
-                    "progress", "project", "agent_profile", "start_date", "due_date", "tags"):
+                    "progress", "project", "agent_profile", "start_date", "due_date",
+                    "blocked_by", "tags"):
             if key in kwargs:
                 data[key] = kwargs[key]
 
@@ -275,3 +288,39 @@ class TodoTool(Tool):
             message=f"Projects: {', '.join(projects)}",
             break_loop=False,
         )
+
+    async def _blocked(self):
+        tasks = get_blocked()
+        if not tasks:
+            return Response(
+                message="No blocked tasks found.",
+                break_loop=False,
+            )
+        lines = [f"Found {len(tasks)} blocked task(s):\n"]
+        for t in tasks:
+            blocker_titles = []
+            for bid in t.get("_active_blockers", []):
+                blocker = get_task(bid)
+                title = blocker["title"] if blocker else bid[:8]
+                status = blocker["status"] if blocker else "?"
+                blocker_titles.append(f"{title} [{status}]")
+            lines.append(
+                f"  [{t['id'][:8]}…] {t['title']}\n"
+                f"    Blocked by: {', '.join(blocker_titles)}"
+            )
+        return Response(message="\n".join(lines), break_loop=False)
+
+    async def _unblocked(self):
+        tasks = get_unblocked()
+        if not tasks:
+            return Response(
+                message="No newly-unblocked tasks found.",
+                break_loop=False,
+            )
+        lines = [f"Found {len(tasks)} newly-unblocked task(s):\n"]
+        for t in tasks:
+            lines.append(
+                f"  [{t['id'][:8]}…] {t['title']}\n"
+                f"    Status: {t['status']} — all blockers resolved"
+            )
+        return Response(message="\n".join(lines), break_loop=False)

@@ -42,6 +42,7 @@ export const store = createStore("todoListStore", {
     formStartDate: "",
     formDueDate: "",
     formTags: "",
+    formBlockedBy: [],
 
     // Linking
     linkMode: false,
@@ -105,6 +106,7 @@ export const store = createStore("todoListStore", {
         this.formStartDate = task.start_date || "";
         this.formDueDate = task.due_date || "";
         this.formTags = (task.tags || []).join(", ");
+        this.formBlockedBy = task.blocked_by ? [...task.blocked_by] : [];
     },
 
     resetForm() {
@@ -120,6 +122,7 @@ export const store = createStore("todoListStore", {
         this.formStartDate = "";
         this.formDueDate = "";
         this.formTags = "";
+        this.formBlockedBy = [];
     },
 
     async saveTask() {
@@ -139,6 +142,7 @@ export const store = createStore("todoListStore", {
             start_date: this.formStartDate || null,
             due_date: this.formDueDate || null,
             tags: this.formTags.split(",").map(t => t.trim()).filter(Boolean),
+            blocked_by: this.formBlockedBy.length > 0 ? this.formBlockedBy : [],
         };
         try {
             if (this.formEditing) {
@@ -199,6 +203,24 @@ export const store = createStore("todoListStore", {
         } catch (err) {
             toastFrontendError(err.message, "Todo List");
         }
+    },
+
+    addBlockedBy(taskId) {
+        if (!this.formBlockedBy.includes(taskId)) {
+            this.formBlockedBy = [...this.formBlockedBy, taskId];
+        }
+    },
+
+    removeBlockedBy(taskId) {
+        this.formBlockedBy = this.formBlockedBy.filter(id => id !== taskId);
+    },
+
+    isUnblocked(task) {
+        if (!task.blocked_by || task.blocked_by.length === 0) return false;
+        return task.blocked_by.every(bid => {
+            const blocker = this.tasks.find(t => t.id === bid);
+            return blocker && (blocker.status === "completed" || blocker.status === "cancelled");
+        });
     },
 
     clearFilters() {

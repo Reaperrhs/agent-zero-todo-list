@@ -69,6 +69,11 @@ def _new_task(data: dict[str, Any]) -> dict[str, Any]:
     start_date = str(data.get("start_date", "")).strip() or None
     due_date = str(data.get("due_date", "")).strip() or None
 
+    blocked_by = data.get("blocked_by", [])
+    if isinstance(blocked_by, str):
+        blocked_by = [bid.strip() for bid in blocked_by.split(",") if bid.strip()]
+    blocked_by = [str(bid) for bid in blocked_by if str(bid).strip()]
+
     now = _now()
     return {
         "id": str(uuid.uuid4()),
@@ -81,6 +86,7 @@ def _new_task(data: dict[str, Any]) -> dict[str, Any]:
         "agent_profile": str(data.get("agent_profile", "")).strip(),
         "start_date": start_date,
         "due_date": due_date,
+        "blocked_by": blocked_by,
         "chat_sections": list(data.get("chat_sections", [])),
         "tags": [str(t).strip() for t in data.get("tags", []) if str(t).strip()],
         "created_at": now,
@@ -93,6 +99,13 @@ def create_task(data: dict[str, Any]) -> dict[str, Any]:
     task = _new_task(data)
     with _lock:
         todos = _read_raw()
+        # Validate blocked_by references exist
+        for bid in task.get("blocked_by", []):
+            if bid not in todos:
+                raise ValueError(f"blocked_by: task '{bid}' not found")
+        # Validate no circular deps (task can't block itself since it doesn't exist yet,
+        # but check if any referenced blocker is blocked by... well, the new task doesn't
+        # exist yet so this is implicitly safe. Still, check referenced tasks exist.)
         todos[task["id"]] = task
         _save(todos)
     return task
@@ -180,6 +193,22 @@ def update_task(task_id: str, data: dict[str, Any]) -> dict | None:
         if "due_date" in data:
             val = str(data.get("due_date", "")).strip() or None
             task["due_date"] = val
+        if "blocked_by" in data:
+            new_blocked = data["blocked_by"]
+            if isinstance(new_blocked, str):
+                new_blocked = [bid.strip() for bid in new_blocked.split(",") if bid.strip()]
+            new_blocked = [str(bid) for bid in new_blocked if str(bid).strip()]
+            # Validate referenced task IDs exist
+            for bid in new_blocked:
+                if bid not in todos:
+                    raise ValueError(f"blocked_by: task '{bid}' not found")
+            # Circular dependency check: would adding these blockers create a cycle?
+            for bid in new_blocked:
+                if _would_cycle(todos, task_id, bid):
+                    raise ValueError(
+                        f"Circular dependency: task '{bid}' is already (directly or indirectly) blocked by '{task_id}'"
+                    )
+            task["blocked_by"] = new_blocked
         if "tags" in data:
             task["tags"] = [str(t).strip() for t in data["tags"] if str(t).strip()]
         if "chat_sections" in data:
@@ -247,6 +276,121 @@ def get_agent_profiles() -> list[str]:
         todos = _read_raw()
     profiles = sorted({t.get("agent_profile", "") for t in todos.values() if t.get("agent_profile")})
     return profiles
+
+
+def _would_cycle(todos: dict, source_id: str, blocker_id: str) -> bool:
+    """Check if making source_id blocked by blocker_id would create a cycle.
+
+    Walk the blocker chain from blocker_id — if we ever reach source_id,
+    it's circular.
+    """
+    visited = set()
+    current = blocker_id
+    while current:
+        if current == source_id:
+            return True
+        if current in visited:
+            break
+        visited.add(current)
+        task = todos.get(current)
+        if not task:
+            break
+        blockers = task.get("blocked_by", [])
+        # Check all blockers' chains
+        if any(_would_cycle(todos, source_id, bid) for bid in blockers if bid != current):
+            return True
+        # Also check: if source_id is in this task's blocked_by, it's direct
+        if source_id in blockers:
+            return True
+        break
+    # Walk upward: check if blocker_id itself is blocked (directly or indirectly) by source_id
+    # via the blocked_by chains of all tasks reachable from blocker_id
+    queue = [blocker_id]
+    visited2 = set()
+    while queue:
+        current = queue.pop(0)
+        if current in visited2:
+            continue
+        visited2.add(current)
+        task_obj = todos.get(current)
+        if not task_obj:
+            continue
+        for bid in task_obj.get("blocked_by", []):
+            if bid == source_id:
+                return True
+            if bid not in visited2:
+                queue.append(bid)
+    return False
+
+
+def get_blocked() -> list[dict]:
+    """Return tasks that are currently blocked (at least one non-completed blocker)."""
+    with _lock:
+        todos = _read_raw()
+    result = []
+    for t in todos.values():
+        blockers = t.get("blocked_by", [])
+        if not blockers:
+            continue
+        # Check if any blocker is not completed/cancelled
+        active_blockers = []
+        for bid in blockers:
+            blocker = todos.get(bid)
+            if blocker and blocker.get("status") not in ("completed", "cancelled"):
+                active_blockers.append(bid)
+        if active_blockers:
+            result.append({**t, "_active_blockers": active_blockers})
+    return result
+
+
+def get_unblocked() -> list[dict]:
+    """Return tasks that have blocked_by but all blockers are now completed/cancelled."""
+    with _lock:
+        todos = _read_raw()
+    result = []
+    for t in todos.values():
+        blockers = t.get("blocked_by", [])
+        if not blockers:
+            continue
+        # All blockers must be completed or cancelled
+        all_resolved = True
+        for bid in blockers:
+            blocker = todos.get(bid)
+            if not blocker or blocker.get("status") not in ("completed", "cancelled"):
+                all_resolved = False
+                break
+        if all_resolved:
+            result.append(t)
+    return result
+
+
+def check_on_complete(task_id: str) -> list[dict]:
+    """Check which tasks become unblocked when task_id is marked completed.
+
+    Call this after setting a task to 'completed' status.
+    Returns list of newly-unblocked tasks.
+    """
+    with _lock:
+        todos = _read_raw()
+    unblocked = []
+    for t in todos.values():
+        if t["id"] == task_id:
+            continue
+        blockers = t.get("blocked_by", [])
+        if task_id not in blockers:
+            continue
+        # Check if all OTHER blockers are also resolved
+        all_resolved = True
+        for bid in blockers:
+            if bid == task_id:
+                continue
+            blocker = todos.get(bid)
+            if not blocker or blocker.get("status") not in ("completed", "cancelled"):
+                all_resolved = False
+                break
+        if all_resolved:
+            unblocked.append(t)
+    return unblocked
 
 
 def get_stats() -> dict[str, Any]:
