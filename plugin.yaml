@@ -1,7 +1,7 @@
 name: todo_list
 title: Todo List
 description: Track tasks and progress across projects, agents, and chat sections with filtering and linking support.
-version: 1.0.0
+version: 1.0.1
 settings_sections: []
 per_project_config: false
 per_agent_config: false
