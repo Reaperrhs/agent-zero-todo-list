@@ -1,5 +1,5 @@
 from helpers.api import ApiHandler, Input, Output, Request
-from usr.plugins.todo_list.helpers.todos import get_tasks as _get_tasks, get_projects, get_stats
+from usr.plugins.todo_list.helpers.todos import get_tasks as _get_tasks, get_projects, get_agent_profiles, get_stats
 
 
 class GetTasks(ApiHandler):
@@ -19,11 +19,13 @@ class GetTasks(ApiHandler):
 
         tasks = _get_tasks(**filters)
         projects = get_projects()
+        agent_profiles = get_agent_profiles()
         stats = get_stats()
 
         return {
             "ok": True,
             "tasks": tasks,
             "projects": projects,
+            "agent_profiles": agent_profiles,
             "stats": stats,
         }

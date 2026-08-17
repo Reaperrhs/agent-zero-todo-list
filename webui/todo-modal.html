@@ -2,6 +2,29 @@
 <head>
   <title>Todo List</title>
   <script type="module" src="/plugins/todo_list/webui/todo-store.js"></script>
+  <script>
+    function buildCalDays(year, month) {
+      const first = new Date(year, month, 1);
+      const last = new Date(year, month + 1, 0);
+      const startDay = first.getDay();
+      const daysInMonth = last.getDate();
+      const today = new Date(); today.setHours(0,0,0,0);
+      const pad = (n) => String(n).padStart(2, '0');
+      const result = [];
+      for (let i = 1 - startDay; i <= daysInMonth; i++) {
+        if (i < 1) {
+          result.push({num: '', date: '', key: 'blank-' + (i + startDay), isToday: false});
+        } else {
+          const d = new Date(year, month, i);
+          const dateStr = pad(month+1) + '-' + pad(i) + '-' + year;
+          result.push({num: i, date: dateStr, key: dateStr, isToday: d.getTime() === today.getTime()});
+        }
+      }
+      return result;
+    }
+
+
+  </script>
 </head>
 <body>
   <div x-data>
@@ -88,12 +111,29 @@
                     <svg class="todo-meta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
                     <span x-text="task.agent_profile"></span>
                   </span>
+                  <span x-show="task.start_date" class="todo-meta-item">
+                    <svg class="todo-meta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    <span x-text="$store.todoListStore.dateLabel(task.start_date)"></span>
+                  </span>
+                  <span x-show="task.due_date" class="todo-meta-item" :class="{ 'todo-overdue': $store.todoListStore.isOverdue(task.due_date) && task.status !== 'completed' }">
+                    <svg class="todo-meta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <span x-text="$store.todoListStore.dateLabel(task.due_date)"></span>
+                  </span>
                   <span x-show="task.chat_sections && task.chat_sections.length" class="todo-meta-item">
                     <svg class="todo-meta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
                     <span x-text="task.chat_sections.length + ' chats'"></span>
                   </span>
                   <template x-for="tag in task.tags" :key="tag">
                     <span class="todo-tag" x-text="tag"></span>
+                  </template>
+                  <template x-if="task.blocked_by && task.blocked_by.length > 0">
+                    <span class="todo-meta-item todo-blocked-badge">
+                      <svg class="todo-meta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                      <span x-text="'blocked by ' + task.blocked_by.length + ' task' + (task.blocked_by.length > 1 ? 's' : '')"></span>
+                    </span>
+                  </template>
+                  <template x-if="task.blocked_by && task.blocked_by.length > 0 && $store.todoListStore.isUnblocked(task)">
+                    <span class="todo-meta-item todo-unlocked-badge" title="All blockers resolved">&#128275; unblocked</span>
                   </template>
                 </div>
 
@@ -131,8 +171,8 @@
         </div>
 
         <!-- Form Modal Overlay -->
-        <div x-show="$store.todoListStore.formOpen" class="todo-form-overlay" style="display: none;" x-transition>
-          <div @click.outside="$store.todoListStore.resetForm()" class="todo-form-panel">
+        <div x-show="$store.todoListStore.formOpen" class="todo-form-overlay" style="display: none;" x-transition @click.self="$store.todoListStore.resetForm()">
+          <div class="todo-form-panel">
             <h3 class="todo-form-title" x-text="$store.todoListStore.formEditing ? 'Edit Task' : 'New Task'"></h3>
             <div class="todo-form-body">
               <div class="todo-form-field">
@@ -171,16 +211,118 @@
               <div class="todo-form-row">
                 <div class="todo-form-field">
                   <label class="todo-form-label">Project</label>
-                  <input x-model="$store.todoListStore.formProject" placeholder="Project name" class="todo-form-input">
+                  <div class="todo-autocomplete" x-data="{acuOpen: false}">
+                    <input x-model="$store.todoListStore.formProject" @focus="acuOpen = true" @blur="setTimeout(() => acuOpen = false, 300)" placeholder="Project name" class="todo-form-input">
+                    <div x-show="acuOpen && $store.todoListStore.projects.length > 0" x-transition class="todo-autocomplete-list">
+                      <template x-for="p in $store.todoListStore.projects.filter(proj => proj.toLowerCase().includes(($store.todoListStore.formProject || '').toLowerCase()))" :key="p">
+                        <div @mousedown.prevent="$store.todoListStore.formProject = p; acuOpen = false" class="todo-autocomplete-item" x-text="p"></div>
+                      </template>
+                    </div>
+                  </div>
                 </div>
                 <div class="todo-form-field">
                   <label class="todo-form-label">Agent Profile</label>
-                  <input x-model="$store.todoListStore.formAgentProfile" placeholder="e.g. developer" class="todo-form-input">
+                  <div class="todo-autocomplete" x-data="{apuOpen: false}">
+                    <input x-model="$store.todoListStore.formAgentProfile" @focus="apuOpen = true" @blur="setTimeout(() => apuOpen = false, 300)" placeholder="e.g. developer" class="todo-form-input">
+                    <div x-show="apuOpen && $store.todoListStore.agentProfiles.length > 0" x-transition class="todo-autocomplete-list">
+                      <template x-for="p in $store.todoListStore.agentProfiles.filter(ap => ap.toLowerCase().includes(($store.todoListStore.formAgentProfile || '').toLowerCase()))" :key="p">
+                        <div @mousedown.prevent="$store.todoListStore.formAgentProfile = p; apuOpen = false" class="todo-autocomplete-item" x-text="p"></div>
+                      </template>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div class="todo-form-field">
                 <label class="todo-form-label">Tags (comma separated)</label>
                 <input x-model="$store.todoListStore.formTags" placeholder="bug, feature, docs" class="todo-form-input">
+              </div>
+              <div class="todo-form-field">
+                <label class="todo-form-label">Blocked By</label>
+                <div class="todo-autocomplete" x-data="{bbOpen: false, bbSearch: ''}">
+                  <div x-data="{get selectedTasks() { return ($store.todoListStore.formBlockedBy || []).map(id => { const t = $store.todoListStore.tasks.find(ta => ta.id === id); return t ? {id: t.id, title: t.title} : {id, title: id.substring(0,8)+'...'}; }) }}">
+                    <div class="todo-blocked-chips">
+                      <template x-for="st in selectedTasks" :key="st.id">
+                        <span class="todo-blocked-chip">
+                          <span x-text="st.title" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+                          <button type="button" class="todo-blocked-chip-remove" @mousedown.prevent="$store.todoListStore.removeBlockedBy(st.id)">&times;</button>
+                        </span>
+                      </template>
+                    </div>
+                  </div>
+                  <input x-model="bbSearch" @focus="bbOpen = true" @keydown.escape="bbOpen = false" placeholder="Search tasks to add as blockers..." class="todo-form-input">
+                  <div x-show="bbOpen && $store.todoListStore.tasks.filter(t => t.id !== $store.todoListStore.formEditing && !($store.todoListStore.formBlockedBy || []).includes(t.id) && t.title.toLowerCase().includes(bbSearch.toLowerCase())).length > 0" x-transition class="todo-autocomplete-list">
+                    <template x-for="t in $store.todoListStore.tasks.filter(t => t.id !== $store.todoListStore.formEditing && !($store.todoListStore.formBlockedBy || []).includes(t.id) && t.title.toLowerCase().includes(bbSearch.toLowerCase())).slice(0, 10)" :key="t.id">
+                      <div @mousedown.prevent="$store.todoListStore.addBlockedBy(t.id); bbSearch = ''" class="todo-autocomplete-item">
+                        <span x-text="t.title"></span>
+                        <span class="todo-blocked-item-id" x-text="t.id.substring(0,8)"></span>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </div>
+              <div class="todo-form-row">
+                <div class="todo-form-field">
+                  <label class="todo-form-label">Start Date</label>
+                  <div class="todo-date-wrapper" x-data="{calOpen: false, calMonth: new Date().getMonth(), calYear: new Date().getFullYear(), calYearPicker: false, get calDays() { return buildCalDays(this.calYear, this.calMonth) } }" @keydown.escape.window="calOpen = false">
+                    <input x-model="$store.todoListStore.formStartDate" @focus="calOpen = true" @keydown.escape="calOpen = false" placeholder="MM-DD-YYYY" class="todo-form-input todo-form-date">
+                    <button type="button" x-ref="calBtn" class="todo-date-icon-btn" @mousedown.prevent="calOpen = !calOpen">
+                      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    </button>
+                    <div x-show="calOpen" x-transition class="todo-calendar" @mousedown.prevent.stop>
+                      <div class="todo-cal-header">
+                        <button type="button" class="todo-cal-nav" @mousedown.prevent="if(calYearPicker){calYear--}else{calMonth--;if(calMonth<0){calMonth=11;calYear--}}">&#9664;</button>
+                        <span class="todo-cal-title">
+                          <span x-text="new Date(calYear, calMonth).toLocaleString('en',{month:'long'})" @click="calYearPicker=!calYearPicker" style="cursor:pointer"></span>
+                          <span x-show="!calYearPicker" x-text="' '+calYear" @click="calYearPicker=true" style="cursor:pointer"></span>
+                          <template x-if="calYearPicker">
+                            <span>
+                              <input x-model="calYear" type="number" class="todo-cal-year-input" @mousedown.prevent.stop @keydown.enter="calYearPicker=false" min="2000" max="2099">
+                              <button type="button" class="todo-cal-nav" @mousedown.prevent="calYearPicker=false">&#10003;</button>
+                            </span>
+                          </template>
+                        </span>
+                        <button type="button" class="todo-cal-nav" @mousedown.prevent="if(calYearPicker){calYear++}else{calMonth++;if(calMonth>11){calMonth=0;calYear++}}">&#9654;</button>
+                      </div>
+                      <div x-show="!calYearPicker" class="todo-cal-grid">
+                        <span class="todo-cal-dow">Su</span><span class="todo-cal-dow">Mo</span><span class="todo-cal-dow">Tu</span><span class="todo-cal-dow">We</span><span class="todo-cal-dow">Th</span><span class="todo-cal-dow">Fr</span><span class="todo-cal-dow">Sa</span>
+                        <template x-for="d in calDays" :key="d.key">
+                          <button type="button" class="todo-cal-day" :class="{'todo-cal-day-selected': d.date===$store.todoListStore.formStartDate, 'todo-cal-day-today': d.isToday}" @mousedown.prevent="$store.todoListStore.formStartDate=d.date; calOpen=false" x-text="d.num"></button>
+                        </template>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="todo-form-field">
+                  <label class="todo-form-label">Due Date</label>
+                  <div class="todo-date-wrapper" x-data="{calOpen: false, calMonth: new Date().getMonth(), calYear: new Date().getFullYear(), calYearPicker: false, get calDays() { return buildCalDays(this.calYear, this.calMonth) } }" @keydown.escape.window="calOpen = false">
+                    <input x-model="$store.todoListStore.formDueDate" @focus="calOpen = true" @keydown.escape="calOpen = false" placeholder="MM-DD-YYYY" class="todo-form-input todo-form-date">
+                    <button type="button" x-ref="calBtn" class="todo-date-icon-btn" @mousedown.prevent="calOpen = !calOpen">
+                      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    </button>
+                    <div x-show="calOpen" x-transition class="todo-calendar" @mousedown.prevent.stop>
+                      <div class="todo-cal-header">
+                        <button type="button" class="todo-cal-nav" @mousedown.prevent="if(calYearPicker){calYear--}else{calMonth--;if(calMonth<0){calMonth=11;calYear--}}">&#9664;</button>
+                        <span class="todo-cal-title">
+                          <span x-text="new Date(calYear, calMonth).toLocaleString('en',{month:'long'})" @click="calYearPicker=!calYearPicker" style="cursor:pointer"></span>
+                          <span x-show="!calYearPicker" x-text="' '+calYear" @click="calYearPicker=true" style="cursor:pointer"></span>
+                          <template x-if="calYearPicker">
+                            <span>
+                              <input x-model="calYear" type="number" class="todo-cal-year-input" @mousedown.prevent.stop @keydown.enter="calYearPicker=false" min="2000" max="2099">
+                              <button type="button" class="todo-cal-nav" @mousedown.prevent="calYearPicker=false">&#10003;</button>
+                            </span>
+                          </template>
+                        </span>
+                        <button type="button" class="todo-cal-nav" @mousedown.prevent="if(calYearPicker){calYear++}else{calMonth++;if(calMonth>11){calMonth=0;calYear++}}">&#9654;</button>
+                      </div>
+                      <div x-show="!calYearPicker" class="todo-cal-grid">
+                        <span class="todo-cal-dow">Su</span><span class="todo-cal-dow">Mo</span><span class="todo-cal-dow">Tu</span><span class="todo-cal-dow">We</span><span class="todo-cal-dow">Th</span><span class="todo-cal-dow">Fr</span><span class="todo-cal-dow">Sa</span>
+                        <template x-for="d in calDays" :key="d.key">
+                          <button type="button" class="todo-cal-day" :class="{'todo-cal-day-selected': d.date===$store.todoListStore.formDueDate, 'todo-cal-day-today': d.isToday}" @mousedown.prevent="$store.todoListStore.formDueDate=d.date; calOpen=false" x-text="d.num"></button>
+                        </template>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
             <div class="todo-form-footer">
@@ -233,7 +375,7 @@
       font-size: 11px;
       padding: 2px 8px;
       border-radius: 4px;
-      background: var(--color-bg-elevated);
+      background: #1f2937;
     }
     .todo-stat-active {
       background: rgba(59, 130, 246, 0.15);
@@ -251,7 +393,7 @@
       gap: 8px;
       padding: 10px 16px;
       border-bottom: 1px solid var(--color-border);
-      background: var(--color-bg-elevated);
+      background: #1f2937;
       flex-shrink: 0;
     }
     .todo-select, .todo-search {
@@ -324,7 +466,7 @@
       padding: 10px 12px;
       border-radius: 8px;
       border: 1px solid var(--color-border);
-      background: var(--color-bg-elevated);
+      background: #1f2937;
       margin-bottom: 6px;
     }
     .todo-item:hover {
@@ -428,8 +570,54 @@
     .todo-tag {
       padding: 1px 6px;
       border-radius: 4px;
-      background: var(--color-bg);
+      background: #111827;
       font-size: 10px;
+    }
+
+    /* Blocked/Unblocked badges */
+    .todo-blocked-badge {
+      color: #f87171;
+    }
+    .todo-unlocked-badge {
+      color: #34d399;
+      font-weight: 500;
+    }
+
+    /* Blocked By chips in form */
+    .todo-blocked-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 4px;
+    }
+    .todo-blocked-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      background: #111827;
+      border: 1px solid #374151;
+      border-radius: 4px;
+      font-size: 11px;
+      color: #d1d5db;
+    }
+    .todo-blocked-chip-remove {
+      background: none;
+      border: none;
+      color: #9ca3af;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      padding: 0 2px;
+    }
+    .todo-blocked-chip-remove:hover {
+      color: #f87171;
+    }
+    .todo-blocked-item-id {
+      margin-left: auto;
+      color: #6b7280;
+      font-size: 10px;
+      font-family: monospace;
     }
 
     /* Progress */
@@ -439,7 +627,7 @@
     .todo-progress-bar {
       width: 100%;
       height: 4px;
-      background: var(--color-bg);
+      background: #111827;
       border-radius: 2px;
       overflow: hidden;
     }
@@ -511,7 +699,7 @@
     }
     .todo-action-btn:hover {
       color: var(--color-text);
-      background: var(--color-bg);
+      background: #111827;
     }
     .todo-action-icon {
       width: 14px;
@@ -521,19 +709,22 @@
 
     /* Form Overlay */
     .todo-form-overlay {
-      position: absolute;
+      position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.6);
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      background: rgba(0, 0, 0, 0.85);
       z-index: 100;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 10vh;
+      overflow-y: auto;
     }
     .todo-form-panel {
-      background: var(--color-bg-elevated);
+      position: relative;
+      background: #1f2937;
       border: 1px solid var(--color-border);
       border-radius: 10px;
-      width: 420px;
+      width: 480px;
       max-width: 90%;
       max-height: 90%;
       display: flex;
@@ -568,7 +759,7 @@
       padding: 6px 10px;
       border-radius: 6px;
       border: 1px solid var(--color-border);
-      background: var(--color-bg);
+      background: #111827;
       color: var(--color-text);
       box-sizing: border-box;
     }
@@ -597,6 +788,145 @@
       border-top: 1px solid var(--color-border);
       flex-shrink: 0;
     }
+    /* Autocomplete */
+    .todo-autocomplete {
+      position: relative;
+    }
+    .todo-autocomplete-list {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 6px;
+      max-height: 150px;
+      overflow-y: auto;
+      z-index: 110;
+    }
+    .todo-autocomplete-item {
+      padding: 6px 10px;
+      font-size: 13px;
+      color: #f3f4f6;
+      cursor: pointer;
+    }
+    .todo-autocomplete-item:hover {
+      background: #374151;
+    }
+    /* Date inputs */
+    .todo-date-wrapper {
+      position: relative;
+    }
+    .todo-form-date {
+      color-scheme: dark;
+      padding-right: 32px;
+    }
+    .todo-date-icon-btn {
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: #9ca3af;
+      cursor: pointer;
+      padding: 2px;
+      display: flex;
+      align-items: center;
+    }
+    .todo-date-icon-btn:hover {
+      color: #f3f4f6;
+    }
+    /* Calendar popup */
+    .todo-calendar {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      z-index: 200;
+      background: #111827;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      padding: 8px;
+      width: 220px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    }
+    .todo-cal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .todo-cal-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #f3f4f6;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+    .todo-cal-year-input {
+      width: 60px;
+      background: #1f2937;
+      border: 1px solid #4b5563;
+      border-radius: 4px;
+      color: #f3f4f6;
+      font-size: 13px;
+      padding: 2px 4px;
+      text-align: center;
+    }
+    .todo-cal-nav {
+      background: none;
+      border: none;
+      color: #9ca3af;
+      cursor: pointer;
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    .todo-cal-nav:hover {
+      background: #374151;
+      color: #f3f4f6;
+    }
+    .todo-cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+    }
+    .todo-cal-dow {
+      text-align: center;
+      font-size: 10px;
+      color: #6b7280;
+      padding: 2px 0;
+    }
+    .todo-cal-day {
+      text-align: center;
+      font-size: 12px;
+      color: #d1d5db;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px 0;
+      border-radius: 4px;
+    }
+    .todo-cal-day:hover {
+      background: #374151;
+    }
+    .todo-cal-day-selected {
+      background: #3b82f6 !important;
+      color: white !important;
+    }
+    .todo-cal-day-today {
+      border: 1px solid #3b82f6;
+    }
+    /* Overdue indicator */
+    .todo-overdue {
+      color: #f87171 !important;
+      font-weight: 600;
+    }
+    .todo-overdue svg {
+      color: #f87171;
+    }
+
   </style>
 </body>
 </html>

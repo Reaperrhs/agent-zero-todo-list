@@ -18,6 +18,7 @@ export const store = createStore("todoListStore", {
     // State
     tasks: [],
     projects: [],
+    agentProfiles: [],
     stats: { total: 0, pending: 0, in_progress: 0, blocked: 0, completed: 0, cancelled: 0 },
     loading: false,
 
@@ -38,7 +39,10 @@ export const store = createStore("todoListStore", {
     formProgress: 0,
     formProject: "",
     formAgentProfile: "",
+    formStartDate: "",
+    formDueDate: "",
     formTags: "",
+    formBlockedBy: [],
 
     // Linking
     linkMode: false,
@@ -56,6 +60,7 @@ export const store = createStore("todoListStore", {
     cleanup() {
         this.tasks = [];
         this.projects = [];
+        this.agentProfiles = [];
         this.resetForm();
         this.linkMode = false;
     },
@@ -73,6 +78,7 @@ export const store = createStore("todoListStore", {
             const data = await api("get_tasks", filters);
             this.tasks = data.tasks || [];
             this.projects = data.projects || [];
+            this.agentProfiles = data.agent_profiles || [];
             this.stats = data.stats || { total: 0, pending: 0, in_progress: 0, blocked: 0, completed: 0, cancelled: 0 };
         } catch (err) {
             toastFrontendError(err.message, "Todo List");
@@ -97,7 +103,10 @@ export const store = createStore("todoListStore", {
         this.formProgress = task.progress || 0;
         this.formProject = task.project || "";
         this.formAgentProfile = task.agent_profile || "";
+        this.formStartDate = task.start_date || "";
+        this.formDueDate = task.due_date || "";
         this.formTags = (task.tags || []).join(", ");
+        this.formBlockedBy = task.blocked_by ? [...task.blocked_by] : [];
     },
 
     resetForm() {
@@ -110,7 +119,10 @@ export const store = createStore("todoListStore", {
         this.formProgress = 0;
         this.formProject = "";
         this.formAgentProfile = "";
+        this.formStartDate = "";
+        this.formDueDate = "";
         this.formTags = "";
+        this.formBlockedBy = [];
     },
 
     async saveTask() {
@@ -127,7 +139,10 @@ export const store = createStore("todoListStore", {
             progress: parseInt(this.formProgress, 10) || 0,
             project: this.formProject.trim(),
             agent_profile: this.formAgentProfile.trim(),
+            start_date: this.formStartDate || null,
+            due_date: this.formDueDate || null,
             tags: this.formTags.split(",").map(t => t.trim()).filter(Boolean),
+            blocked_by: this.formBlockedBy.length > 0 ? this.formBlockedBy : [],
         };
         try {
             if (this.formEditing) {
@@ -190,6 +205,24 @@ export const store = createStore("todoListStore", {
         }
     },
 
+    addBlockedBy(taskId) {
+        if (!this.formBlockedBy.includes(taskId)) {
+            this.formBlockedBy = [...this.formBlockedBy, taskId];
+        }
+    },
+
+    removeBlockedBy(taskId) {
+        this.formBlockedBy = this.formBlockedBy.filter(id => id !== taskId);
+    },
+
+    isUnblocked(task) {
+        if (!task.blocked_by || task.blocked_by.length === 0) return false;
+        return task.blocked_by.every(bid => {
+            const blocker = this.tasks.find(t => t.id === bid);
+            return blocker && (blocker.status === "completed" || blocker.status === "cancelled");
+        });
+    },
+
     clearFilters() {
         this.filterProject = "";
         this.filterStatus = "";
@@ -229,5 +262,30 @@ export const store = createStore("todoListStore", {
             urgent: "text-red-400",
         };
         return map[priority] || map.medium;
+    },
+
+    dateLabel(dateStr) {
+        if (!dateStr) return "";
+        // Parse MM-DD-YYYY format
+        const parts = dateStr.split('-');
+        const d = new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]));
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        const diff = Math.floor((d - now) / 86400000);
+        if (diff === 0) return "Today";
+        if (diff === 1) return "Tomorrow";
+        if (diff === -1) return "Yesterday";
+        if (diff > 1 && diff <= 7) return `In ${diff} days`;
+        if (diff < -1 && diff >= -7) return `${Math.abs(diff)} days ago`;
+        return dateStr;
+    },
+
+    isOverdue(dateStr) {
+        if (!dateStr) return false;
+        const parts = dateStr.split('-');
+        const d = new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]));
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        return d < now;
     },
 });
