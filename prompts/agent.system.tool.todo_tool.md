@@ -129,7 +129,7 @@ Example:
 
 **⚠️ DELETION POLICY (NON-NEGOTIABLE):**
 
-Never delete a task without explicit authorization from the Principal (Wagner dos Santos). If the Principal says "clean up" or "remove", confirm each deletion individually before executing. The tool itself will block deletions unless `confirmed: true` is passed.
+Never delete a task without explicit authorization from the Principal (the repository owner). If the Principal says "clean up" or "remove", confirm each deletion individually before executing. The tool itself will block deletions unless `confirmed: true` is passed.
 
 Example (only after explicit Principal confirmation):
 ```json
